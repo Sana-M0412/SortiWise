@@ -2,7 +2,11 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 
 // Retrieve API key from Env or LocalStorage (settings panel)
 export function getGeminiApiKey() {
-  return import.meta.env.VITE_GEMINI_API_KEY || localStorage.getItem('sortiwise_gemini_key') || '';
+  const envKey = import.meta.env.VITE_GEMINI_API_KEY;
+  if (envKey && envKey !== 'your_gemini_key_here' && envKey !== 'your_gemini_api_key_here' && !envKey.startsWith('your_')) {
+    return envKey;
+  }
+  return localStorage.getItem('sortiwise_gemini_key') || '';
 }
 
 // System instructions to guide SortiWise AI segregation and reasoning
@@ -57,17 +61,25 @@ export async function analyzeWasteImage(imageFile, language = 'en') {
   }
 
   const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({ 
-    model: 'gemini-2.5-flash',
-    generationConfig: { responseMimeType: 'application/json' }
-  });
-  
   const imagePart = await fileToGenerativePart(imageFile);
   const prompt = `Classify this waste item. Provide the response in the language: "${language}".\n${SYSTEM_INSTRUCTIONS}`;
 
-  const result = await model.generateContent([prompt, imagePart]);
-  const responseText = result.response.text();
-  return JSON.parse(responseText);
+  const executeCall = async (modelName) => {
+    const model = genAI.getGenerativeModel({ 
+      model: modelName,
+      generationConfig: { responseMimeType: 'application/json' }
+    });
+    const result = await model.generateContent([prompt, imagePart]);
+    const responseText = result.response.text();
+    return JSON.parse(responseText);
+  };
+
+  try {
+    return await executeCall('gemini-2.5-flash');
+  } catch (err) {
+    console.warn("gemini-2.5-flash failed, attempting fallback to gemini-2.0-flash", err);
+    return await executeCall('gemini-2.0-flash');
+  }
 }
 
 // Analyze waste via Text Description
@@ -78,16 +90,24 @@ export async function analyzeWasteText(textDescription, language = 'en') {
   }
 
   const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({ 
-    model: 'gemini-2.5-flash',
-    generationConfig: { responseMimeType: 'application/json' }
-  });
-  
   const prompt = `Classify this waste item based on this description: "${textDescription}". Provide the response in the language: "${language}".\n${SYSTEM_INSTRUCTIONS}`;
 
-  const result = await model.generateContent([prompt]);
-  const responseText = result.response.text();
-  return JSON.parse(responseText);
+  const executeCall = async (modelName) => {
+    const model = genAI.getGenerativeModel({ 
+      model: modelName,
+      generationConfig: { responseMimeType: 'application/json' }
+    });
+    const result = await model.generateContent([prompt]);
+    const responseText = result.response.text();
+    return JSON.parse(responseText);
+  };
+
+  try {
+    return await executeCall('gemini-2.5-flash');
+  } catch (err) {
+    console.warn("gemini-2.5-flash failed, attempting fallback to gemini-2.0-flash", err);
+    return await executeCall('gemini-2.0-flash');
+  }
 }
 
 // Chat with the Coach
@@ -98,23 +118,30 @@ export async function askAICoach(chatHistory, message, language = 'en') {
   }
 
   const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
-
   const formattedHistory = chatHistory.map(msg => ({
     role: msg.sender === 'user' ? 'user' : 'model',
     parts: [{ text: msg.text }]
   }));
 
-  const chat = model.startChat({
-    history: [
-      {
-        role: 'user',
-        parts: [{ text: `You are the SortiWise AI Sustainability Coach. Your goal is to guide users to live a greener, low-carbon lifestyle. Answer questions concisely, friendly, and provide helpful eco-tips. Respond in ${language}.` }]
-      },
-      ...formattedHistory
-    ]
-  });
+  const executeCall = async (modelName) => {
+    const model = genAI.getGenerativeModel({ model: modelName });
+    const chat = model.startChat({
+      history: [
+        {
+          role: 'user',
+          parts: [{ text: `You are the SortiWise AI Sustainability Coach. Your goal is to guide users to live a greener, low-carbon lifestyle. Answer questions concisely, friendly, and provide helpful eco-tips. Respond in ${language}.` }]
+        },
+        ...formattedHistory
+      ]
+    });
+    const result = await chat.sendMessage(message);
+    return result.response.text();
+  };
 
-  const result = await chat.sendMessage(message);
-  return result.response.text();
+  try {
+    return await executeCall('gemini-2.5-flash');
+  } catch (err) {
+    console.warn("gemini-2.5-flash failed, attempting fallback to gemini-2.0-flash", err);
+    return await executeCall('gemini-2.0-flash');
+  }
 }

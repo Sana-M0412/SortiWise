@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Camera, Upload, Mic, FileText, CheckCircle, Volume2, ShieldAlert, Sparkles, Loader } from 'lucide-react';
-import { analyzeWasteImage, analyzeWasteText } from '../lib/gemini';
+import { analyzeWasteImage, analyzeWasteText, getGeminiApiKey } from '../lib/gemini';
 import { classifyOffline } from '../lib/offlineClassifier';
 import confetti from 'canvas-confetti';
 
@@ -144,7 +144,7 @@ export default function Scanner({ language, onAddLog, addXp }) {
 
     // Check if offline or if no API key is stored
     const isOnline = navigator.onLine;
-    const hasApiKey = import.meta.env.VITE_GEMINI_API_KEY || localStorage.getItem('sortiwise_gemini_key');
+    const hasApiKey = getGeminiApiKey();
 
     try {
       if (!isOnline || !hasApiKey) {
@@ -180,7 +180,11 @@ export default function Scanner({ language, onAddLog, addXp }) {
       }
     } catch (err) {
       console.error(err);
-      setErrorMsg(err.message || "Failed to analyze the item. Please verify your internet and API keys.");
+      let friendlyError = err.message || "Failed to analyze the item. Please verify your internet and API keys.";
+      if (friendlyError.toLowerCase().includes('leaked') || friendlyError.includes('403') || friendlyError.toLowerCase().includes('api key')) {
+        friendlyError = "Gemini API Error: The API key was reported as leaked or is invalid. Please go to the Settings panel and configure a valid Gemini API key.";
+      }
+      setErrorMsg(friendlyError);
     } finally {
       setLoading(false);
     }

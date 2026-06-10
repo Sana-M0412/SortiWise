@@ -374,7 +374,7 @@ export default function App() {
         {view === 'scan' && <Scanner language={language} onAddLog={handleAddLog} addXp={addXp} />}
         {view === 'barcode' && <BarcodeScanner onAddLog={handleAddLog} addXp={addXp} />}
         {view === 'centers' && <RecyclingCenters />}
-        {view === 'coach' && <Coach language={language} />}
+        {view === 'coach' && <Coach language={language} logs={logs} />}
         {view === 'community' && <Community currentUser={user} />}
         {view === 'gamification' && <Gamification logs={logs} xp={xp} level={level} streak={streak} />}
         {view === 'history' && <History logs={logs} onClearLogs={handleClearLogs} />}
